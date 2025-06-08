@@ -68,17 +68,17 @@ Here's a quick overview of the main journal entry endpoints:
 
 **Request Body**: {"intention": "str", "work": "str", "struggle": "str"}
 
-**Response**: The full JournalEntryResponse including generated id, created_at, and updated_at.
+**Response**: The full EntryResponse including generated id, created_at, and updated_at.
 
 - GET /entries/: Retrieve a summary list of all journal entries.
 
-**Response**: List[JournalEntrySummary] (each with id and intention).
+**Response**: List[EntrySummary] (each with id and intention).
 
 - GET /entries/{entry_id}: Retrieve the details of a single entry.
 
 **Path Parameter**: entry_id (the unique ID of the entry).
 
-**Response**: The full JournalEntryResponse for the matching entry. Returns 404 Not Found if the ID doesn't exist.
+**Response**: The full EntryResponse for the matching entry. Returns 404 Not Found if the ID doesn't exist.
 
 - PUT /entries/{entry_id}: Update an existing journal entry.
 
@@ -86,7 +86,7 @@ Here's a quick overview of the main journal entry endpoints:
 
 **Request Body**: {"intention": "str" (optional), "work": "str" (optional), "struggle": "str" (optional)}
 
-**Response**: The updated JournalEntryResponse. Returns 404 Not Found if the ID doesn't exist.
+**Response**: The updated EntryResponse. Returns 404 Not Found if the ID doesn't exist.
 
 - DELETE /entries/{entry_id}: Delete a journal entry.
 
