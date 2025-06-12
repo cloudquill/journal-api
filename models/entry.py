@@ -1,3 +1,5 @@
+import os 
+
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime, timezone
@@ -20,7 +22,7 @@ class EntryCreate(BaseModel):
         description="What’s one thing you struggled with today?"
     )
 
-class EntryResponse(EntryCreate):
+class EntryFull(EntryCreate):
     id: str = Field(
         default_factory=lambda: str(uuid4()),
         description="Unique identifier for the entry (UUID)."
@@ -32,14 +34,6 @@ class EntryResponse(EntryCreate):
     updated_at: Optional[datetime] = Field(
         default=None,
         description="Timestamp when the entry was last updated."
-    )
-
-class EntrySummary(BaseModel):    
-    id: str = Field(
-        description="Unique identifier for the entry (UUID)."
-    )
-    intention: str = Field(
-        description="What will you study/work on tomorrow?"
     )
 
 class EntryUpdate(BaseModel):

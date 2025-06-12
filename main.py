@@ -1,77 +1,67 @@
-from typing import List
-from datetime import datetime, timezone
+import logging
+from dotenv import dotenv_values
 
-from fastapi import FastAPI, status, HTTPException
+from fastapi import FastAPI, status
+from azure.core.exceptions import ServiceRequestError, ResourceNotFoundError
+from azure.cosmos.aio import CosmosClient
+from azure.cosmos import PartitionKey
+from fastapi.exceptions import HTTPException
 
-from models.entry import (
-    EntryCreate, 
-    EntryResponse, 
-    EntrySummary, 
-    EntryUpdate
-)
+from controllers.journal_router import router as entry_router
 
-entries = {}
+logger = logging.getLogger("journal_api")
 
+formatter = logging.Formatter('%(levelname)s - %(asctime)s - %(message)s')
+
+handler = logging.FileHandler("app.log")
+handler.setFormatter(formatter)
+handler.setLevel(logging.DEBUG)
+logger.addHandler(handler)
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+console_handler.setLevel(logging.INFO)
+logger.addHandler(console_handler)
+
+logger.setLevel(logging.INFO)
+
+config = dotenv_values(".env")
 app = FastAPI()
+db_name = "journal"
+container_name = "entries"
+
+app.include_router(entry_router, tags=["entries"], prefix="/entries")
+
+@app.on_event("startup")
+async def startup_db_client():
+    app.cosmos_client = CosmosClient(config["COSMOS_DB_URL"], credential=config["COSMOS_DB_KEY"])
+    
+    try:
+        await get_or_create_db(db_name)
+        await get_or_create_container(container_name)
+    except ServiceRequestError as e:
+        logger.critical(f"Couldn't reach Cosmos DB account: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Couldn't reach Cosmos DB."
+        )
+
+async def get_or_create_db(db_name):
+    try:
+        app.database  = app.cosmos_client.get_database_client(db_name)
+        return await app.database.read()
+    except ResourceNotFoundError:
+        logger.info("Creating database")
+        return await app.cosmos_client.create_database(db_name)
+     
+async def get_or_create_container(container_name):
+    try:        
+        app.entry_container = app.database.get_container_client(container_name)
+        return await app.entry_container.read()   
+    except ResourceNotFoundError:
+        logger.info("Creating container with id as partition key")
+        return await app.database.create_container(id=container_name, partition_key=PartitionKey(path="/id"))
 
 @app.get("/")
 def home():
     return("Hello, Journal API!!")
-
-@app.post("/entries/", status_code=status.HTTP_201_CREATED)
-def create_entry(entry_data: EntryCreate) -> EntryResponse:
-    full_entry = EntryResponse(**entry_data.model_dump())
-    entries[full_entry.id] = full_entry
-    return full_entry
-
-@app.get("/entries/")
-def get_entries() -> List[EntrySummary]:
-    entry_summaries = [
-        EntrySummary(id=key, intention=entries[key].intention) 
-        for key in entries
-    ]
-
-    return entry_summaries
-
-@app.get("/entries/{entry_id}", response_model=EntryResponse)
-def get_an_entry(entry_id: str):
-    if entry_id in entries:
-        return entries[entry_id]
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"Journal entry with id {entry_id} not found"
-        )
-
-@app.put("/entries/{entry_id}", response_model=EntryResponse)
-def update_entry(entry_id: str, update_data: EntryUpdate):
-    if entry_id not in entries:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"Journal entry with id {entry_id} not found"
-        )
-
-    existing_entry = entries[entry_id]
-
-    # Converts to a dictionary with empty vars excluded
-    update_data_dict = update_data.model_dump(exclude_unset=True)
-
-    for field_name, field_value in update_data_dict.items():
-        # Updates existing variables to new values
-        if field_name not in ["id", "created_at"]:
-            setattr(existing_entry, field_name, field_value)
-    
-    existing_entry.updated_at = datetime.now(timezone.utc)
-    
-    return existing_entry
-
-@app.delete("/entries/{entry_id}")
-def delete_entry(entry_id: str) -> str:
-    if entry_id not in entries:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"Journal entry with id {entry_id} not found"
-        )
-
-    del entries[entry_id]
-    return f"Journal entry with id {entry_id} has been deleted."

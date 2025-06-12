@@ -1,7 +1,7 @@
 # Journal API
-This project is a simple RESTful API for managing personal journal entries, built with FastAPI. Currently, all data is stored in-memory, meaning it will be lost whenever the application restarts. Persistent storage will be added shortly.
+This project is a simple RESTful API for managing personal journal entries, built with FastAPI. In the previous iteration, all data was stored in-memory, meaning it will be lost whenever the application restarts. Now, persistent storage has been tested using Azure Cosmos DB Emulator.
 
-Technologies used are Python, FastAPI, Pydantic and Uvicorn.
+Technologies used are Python, FastAPI, Pydantic, Uvicorn and Azure Cosmos Emulator.
 
 ## Features
 The API provides core CRUD (Create, Read, Update, Delete) operations for journal entries:
@@ -23,6 +23,8 @@ The API provides core CRUD (Create, Read, Update, Delete) operations for journal
 
 4. Uvicorn: An ASGI server that runs the FastAPI application.
 
+5. Cosmos Emulator
+
 ## Setup & Running the Application
 Follow these steps to run the API on your local machine:
 
@@ -37,7 +39,7 @@ source venv/bin/activate  # On Windows: `venv\Scripts\activate`
 
 - Install dependencies:
  ```python
-pip install fastapi uvicorn[standard]
+pip install -r requirements.txt
 ```
 
 - Run the application:
@@ -46,6 +48,24 @@ Navigate to the directory containing your main.py file in your terminal and run:
 uvicorn main:app --reload
 # The --reload flag will automatically restart the server when you make changes to your code.
 ```
+
+## Azure Cosmos DB Emulator
+The Cosmos DB Emulator provides a local environment to emulate the Azure Cosmos DB service. It's perfect for local development and testing without Azure costs.
+
+### Setup & Connection
+- Download & Install: Get the Emulator from the [official Microsoft Learn docs](https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-develop-emulator?tabs=windows%2Ccsharp&pivots=api-nosql#install-the-emulator). Follow their installation guide.
+
+- Run: Launch the application.
+
+- .env Configuration: Set your environment variables to connect to the emulator's default endpoint and key:
+```txt
+COSMOS_DB_URI=https://localhost:8081/
+COSMOS_DB_KEY=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDUgOfFA/fn5Jp6JPwRiteMW/zthchHFQDfdvilleimwz+/g==
+
+Note: The provided key is the default emulator key.
+```
+
+- Wait for a notification telling you the app has started.
 
 ## API Endpoints
 Once the server is running, you can access the interactive API documentation at:
@@ -64,38 +84,39 @@ This Swagger UI allows you to:
 
 Here's a quick overview of the main journal entry endpoints:
 
-- POST /entries/: Create a new journal entry.
+- POST /entries/create: Create a new journal entry.
 
 **Request Body**: {"intention": "str", "work": "str", "struggle": "str"}
 
-**Response**: The full EntryResponse including generated id, created_at, and updated_at.
+**Response**: The full entry including generated id, created_at, and updated_at.
 
-- GET /entries/: Retrieve a summary list of all journal entries.
-
-**Response**: List[EntrySummary] (each with id and intention).
+- GET /entries/listall: Retrieves all journal entries.
 
 - GET /entries/{entry_id}: Retrieve the details of a single entry.
 
 **Path Parameter**: entry_id (the unique ID of the entry).
 
-**Response**: The full EntryResponse for the matching entry. Returns 404 Not Found if the ID doesn't exist.
+**Response**: The full detais for the matching entry.
 
-- PUT /entries/{entry_id}: Update an existing journal entry.
+- PUT /entries/update/{entry_id}: Updates an existing journal entry.
 
 **Path Parameter**: entry_id.
 
 **Request Body**: {"intention": "str" (optional), "work": "str" (optional), "struggle": "str" (optional)}
 
-**Response**: The updated EntryResponse. Returns 404 Not Found if the ID doesn't exist.
+**Response**: The updated entry.
 
-- DELETE /entries/{entry_id}: Delete a journal entry.
+- DELETE /entries/delete/{entry_id}: Deletes a journal entry.
 
 **Path Parameter**: entry_id.
 
-**Response**: A confirmation message. Returns 404 Not Found if the ID doesn't exist.
+**Response**: A confirmation message.
 
 
 ## Next steps
-- Database Integration: Connecting to a persistent database (like Azure Cosmos DB, PostgreSQL, or SQLite) to store data permanently.
+- Database Integration: Connecting to a persistent database (like Azure Cosmos DB, PostgreSQL, or SQLite) to store data permanently. (Completed)
 
 - Testing: Writing automated tests to ensure API reliability.
+
+- Logging: Improve logging system
+
