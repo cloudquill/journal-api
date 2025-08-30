@@ -46,26 +46,13 @@ pip install -r requirements.txt
 Navigate to the directory containing your main.py file in your terminal and run:
 ```python
 uvicorn main:app --reload
-# The --reload flag will automatically restart the server when you make changes to your code.
 ```
 
 ## Azure Cosmos DB Emulator
 The Cosmos DB Emulator provides a local environment to emulate the Azure Cosmos DB service. It's perfect for local development and testing without Azure costs.
 
 ### Setup & Connection
-- Download & Install: Get the Emulator from the [official Microsoft Learn docs](https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-develop-emulator?tabs=windows%2Ccsharp&pivots=api-nosql#install-the-emulator). Follow their installation guide.
-
-- Run: Launch the application.
-
-- .env Configuration: Set your environment variables to connect to the emulator's default endpoint and key:
-```txt
-COSMOS_DB_URI=https://localhost:8081/
-COSMOS_DB_KEY=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDUgOfFA/fn5Jp6JPwRiteMW/zthchHFQDfdvilleimwz+/g==
-
-Note: The provided key is the default emulator key.
-```
-
-- Wait for a notification telling you the app has started.
+Follow the instruction guide to download and set up the Emulator from the [official Microsoft Learn docs](https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-develop-emulator?tabs=windows%2Ccsharp&pivots=api-nosql#install-the-emulator).
 
 ## API Endpoints
 Once the server is running, you can access the interactive API documentation at:
@@ -90,7 +77,7 @@ Here's a quick overview of the main journal entry endpoints:
 
 **Response**: The full entry including generated id, created_at, and updated_at.
 
-- GET /entries/listall: Retrieves all journal entries.
+- GET /entries/all: Retrieves all journal entries.
 
 - GET /entries/{entry_id}: Retrieve the details of a single entry.
 
