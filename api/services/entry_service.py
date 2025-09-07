@@ -8,35 +8,32 @@ class EntryService:
     def __init__(self, db: cosmosDB):
         self.db = db
 
-    def create_entry(self, entry_data: inputEntry) -> None:
+    async def create_entry(self, entry_data: inputEntry) -> None:
         enriched_entry = enrichedEntry(**entry_data.model_dump())
-        self.db.create_entry(enriched_entry.model_dump())
+        await self.db.create_entry(enriched_entry.model_dump())
     
-    def get_all_entries(self) -> List[Dict[str, Any]]:
-        raw_entries = self.db.get_all_entries()
-        journal = []
-
-        for entry in raw_entries:
-            enriched_entry = enrichedEntry(**entry)
-            journal.append(enriched_entry.model_dump(exclude=["created_at", "updated_at"]))
+    async def get_all_entries(self) -> List[Dict[str, Any]]:
+        raw_entries = await self.db.get_all_entries()
         
-        return journal
+        return [
+            enrichedEntry(**entry).model_dump(exclude=["created_at", "updated_at"])
+            for entry in raw_entries
+        ]
     
-    def get_entry(self, entry_id: str) -> Dict[str, Any]:
-        entry = self.db.get_entry(entry_id)
-        enriched_entry = enrichedEntry(**entry)
-        return enriched_entry.model_dump()
+    async def get_entry(self, entry_id: str) -> Dict[str, Any]:
+        entry = await self.db.get_entry(entry_id)
+        return enrichedEntry(**entry).model_dump()
 
-    def update_entry(self, entry_id: str, updated_data: inputEntry) -> None:
-        entry = self.db.get_entry(entry_id)
+    async def update_entry(self, entry_id: str, updated_data: inputEntry) -> None:
+        entry = await self.db.get_entry(entry_id)
         updated_data_dict = updated_data.model_dump()
         
-        for i in ["work", "struggle", "intention"]:
-            if updated_data_dict[i].strip():
-                entry[i] = updated_data_dict[i]
+        for field in ["work", "struggle", "intention"]:
+            if updated_data_dict[field].strip():
+                entry[field] = updated_data_dict[field]
         
         entry["updated_at"] = datetime.now().isoformat("#", "seconds")
-        self.db.update_entry(entry_id, entry)
+        await self.db.update_entry(entry_id, entry)
     
-    def delete_entry(self, entry_id: str) -> None:
-        self.db.delete_entry(entry_id)
+    async def delete_entry(self, entry_id: str) -> None:
+        await self.db.delete_entry(entry_id)

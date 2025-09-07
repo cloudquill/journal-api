@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from typing import Dict, Any, List
 
-from azure.cosmos import CosmosClient
+from azure.cosmos.aio import CosmosClient
 
 from repositories.interface_repository import DatabaseInterface
 
@@ -21,25 +21,33 @@ class cosmosDB(DatabaseInterface):
         self.db = self.client.get_database_client(DB_NAME)
         self.container = self.db.get_container_client(CONTAINER_NAME)
 
-    def create_entry(self, entry_data: Dict[str, Any]) -> None:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.client.close()
+    
+    async def create_entry(self, entry_data: Dict[str, Any]) -> None:
         """Creates a new journal entry"""
-        self.container.upsert_item(entry_data)
+        await self.container.upsert_item(entry_data)
 
-    def get_all_entries(self) -> List[Dict[str, Any]]:
+    async def get_all_entries(self) -> List[Dict[str, Any]]:
         """Gets all entries from db"""
-        return list(self.container.read_all_items())
-    
-    def get_entry(self, entry_id: str) -> Dict[str, Any]:
-        """Gets an entry by id"""
-        return dict(self.container.read_item(entry_id, partition_key=entry_id))
-    
-    def update_entry(self, entry_id: str, updated_data: Dict[str, Any]) -> None:
-        """Updates an entry"""
-        self.container.replace_item(entry_id, updated_data)
+        raw_entries = self.container.read_all_items()
+        return [entry async for entry in raw_entries]
 
-    def delete_all_entries(self) -> None:
+    
+    async def get_entry(self, entry_id: str) -> Dict[str, Any]:
+        """Gets an entry by id"""
+        return dict(await self.container.read_item(entry_id, partition_key=entry_id))
+    
+    async def update_entry(self, entry_id: str, updated_data: Dict[str, Any]) -> None:
+        """Updates an entry"""
+        await self.container.replace_item(entry_id, updated_data)
+
+    async def delete_all_entries(self) -> None:
         pass
     
-    def delete_entry(self, entry_id: str) -> None:
+    async def delete_entry(self, entry_id: str) -> None:
         """Deletes an entry"""
-        self.container.delete_item(entry_id, partition_key=entry_id)
+        await self.container.delete_item(entry_id, partition_key=entry_id)
