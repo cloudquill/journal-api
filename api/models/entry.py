@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Optional
 
-class inputEntry(BaseModel):
+class InputEntry(BaseModel):
     work: str = Field(
         ...,
         max_length=256,
@@ -19,7 +19,7 @@ class inputEntry(BaseModel):
         description= "How do you plan to solve your struggle?"
     )
 
-class enrichedEntry(inputEntry):
+class EnrichedEntry(InputEntry):
     id: str = Field(
         default_factory= lambda: str(uuid.uuid4()),
         description="Unique identifier for the entry (UUID)."
