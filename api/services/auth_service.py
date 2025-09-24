@@ -50,7 +50,10 @@ class AuthService():
             return True
         else:
             logger.error("Could not register user: Password is weak.")
-            raise WeakPassword("Inputted password is weak.")
+            raise WeakPassword(
+                "Weak password. Password must be more than 8 characters, contain at least "
+                "one lowercase, uppercase letter, number and special character."
+            )
     
     def hash_password(self, plain_password: str) -> str:
         return pwd_context.hash(plain_password)

@@ -26,6 +26,6 @@ class CreateUser(BaseModel):
     )]
     password: Annotated[str, Field(
         ...,
-        min_length=2,
+        min_length=9,
         description="The user's password"
     )]
