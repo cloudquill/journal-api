@@ -3,6 +3,16 @@ class EntryNotFoundError(Exception):
     pass
 
 
-class JournalError(Exception):
-    """Raised for general journal-related errors."""
+class UserAlreadyExists(Exception):
+    """Raised for already existing usernames"""
+    pass
+
+
+class WeakPassword(Exception):
+    """Raised for weak passwords"""
+    pass
+
+
+class IncorrectCredentials(Exception):
+    """Raised for incorrect credentials"""
     pass
