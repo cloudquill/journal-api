@@ -3,3 +3,5 @@ uvicorn
 python-dotenv
 azure-cosmos
 aiohttp
+pyjwt
+passlib[bcrypt]

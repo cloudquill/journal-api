@@ -1,13 +1,13 @@
 import os
 import logging
-from dotenv import load_dotenv
 from typing import Dict, Any, List
-from functools import wraps
 
+from azure.cosmos.partition_key import PartitionKey
+from dotenv import load_dotenv
 from azure.cosmos.aio import CosmosClient
-from azure.core.exceptions import ServiceRequestError
-from azure.cosmos.exceptions import CosmosHttpResponseError, CosmosResourceNotFoundError
 
+from models.user import UserInDB
+from utils.decorator import handle_cosmos_exception
 from repositories.interface_repository import DatabaseInterface
 
 load_dotenv()
@@ -15,53 +15,32 @@ logger = logging.getLogger("journal")
 
 URL = os.getenv("COSMOS_ENDPOINT")
 KEY = os.getenv("COSMOS_KEY")
-DB_NAME = os.getenv("DATABASE_NAME")
-CONTAINER_NAME = os.getenv("CONTAINER_NAME")
-if not (URL and KEY and DB_NAME and CONTAINER_NAME):
+ENTRY_DB = os.getenv("ENTRY_DB")
+ENTRY_CONTAINER = os.getenv("ENTRY_CONTAINER")
+USER_DB = os.getenv("USER_DB")
+USER_CONTAINER = os.getenv("USER_CONTAINER")
+if not (URL and KEY and ENTRY_DB and ENTRY_CONTAINER and USER_DB and USER_CONTAINER):
     logger.critical("Environment variables not loaded.")
     raise ValueError("Environment variables not loaded.")
 
 class CosmosDB(DatabaseInterface):
     def __init__(self) -> None:
         self.client = CosmosClient(URL, {"masterKey": KEY})
-        self.db = self.client.get_database_client(DB_NAME)
-        self.container = self.db.get_container_client(CONTAINER_NAME)
-        logger.debug("Established connection to Database.")
+        self.db = None
+        self.container = None
 
+    @handle_cosmos_exception("establish connection to database")
     async def __aenter__(self):
+        self.db = await self.client.create_database_if_not_exists(ENTRY_DB)
+        self.container = await self.db.create_container_if_not_exists(
+            ENTRY_CONTAINER,
+            partition_key=PartitionKey(path=["/user_id"])
+        )
+        logger.debug("Established connection to database.")
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.client.close()
-    
-    def handle_cosmos_exception(error_msg: str):
-        """
-        Handles Cosmos DB exceptions with custom messages and logging.
-        """
-        def decorator(func):
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                try:
-                    return await func(*args, **kwargs)
-                except (CosmosHttpResponseError, CosmosResourceNotFoundError, ServiceRequestError) as e:
-                    log_extra = (args[1] if len(args) > 1 else None)
-
-                    if log_extra:
-                        logger.exception(
-                            "Couldn't %s: An unexpected error occurred: %s. Details: %s", 
-                            error_msg, 
-                            log_extra, 
-                            str(e)
-                        )
-                    else:
-                        logger.exception(
-                            "Couldn't %s: An unexpected error occurred. Details: %s", 
-                            error_msg, 
-                            str(e)
-                        )
-                    raise e
-            return wrapper
-        return decorator
     
     @handle_cosmos_exception(error_msg="create entry")
     async def create_entry(self, entry_data: Dict[str, Any]) -> None:
@@ -69,15 +48,20 @@ class CosmosDB(DatabaseInterface):
         await self.container.upsert_item(entry_data)
         
     @handle_cosmos_exception(error_msg="retrieve all entries")
-    async def get_all_entries(self) -> List[Dict[str, Any]]:
-        """Gets all entries from db"""
-        raw_entries = self.container.read_all_items()
+    async def get_all_entries(self, user_id: str) -> List[Dict[str, Any]]:
+        """Gets all entries for a specific user"""
+        raw_entries = self.container.query_items(
+            query='SELECT * FROM c WHERE c.user_id = @user_id',
+            parameters=[{"name": "@user_id", "value": user_id}],
+            partition_key=user_id
+        )
+        
         return [entry async for entry in raw_entries]
         
     @handle_cosmos_exception(error_msg="retrieve entry")
-    async def get_entry(self, entry_id: str) -> Dict[str, Any]:
+    async def get_entry(self, entry_id: str, user_id: str) -> Dict[str, Any]:
         """Gets an entry by id"""
-        return dict(await self.container.read_item(entry_id, partition_key=entry_id))
+        return await self.container.read_item(entry_id, partition_key=user_id)
     
     @handle_cosmos_exception(error_msg="update entry")
     async def update_entry(
@@ -92,6 +76,33 @@ class CosmosDB(DatabaseInterface):
         pass
     
     @handle_cosmos_exception(error_msg="delete entry")
-    async def delete_entry(self, entry_id: str) -> None:
+    async def delete_entry(self, entry_id: str, user_id: str) -> None:
         """Deletes an entry"""
-        await self.container.delete_item(entry_id, partition_key=entry_id)
+        await self.container.delete_item(entry_id, partition_key=user_id)
+
+
+class UserDB(CosmosDB):
+    def __init__(self):
+        super().__init__()
+
+    @handle_cosmos_exception("establish connection to user database")
+    async def __aenter__(self):
+        self.db = await self.client.create_database_if_not_exists(USER_DB)
+        self.container = await self.db.create_container_if_not_exists(
+            USER_CONTAINER,
+            partition_key=PartitionKey(path=["/id"])
+        )
+        logger.debug("Established connection to user database.")
+        return self
+        
+    @handle_cosmos_exception(error_msg="register user")
+    async def register_user(self, user_data: UserInDB) -> None:
+        await self.container.create_item(user_data.model_dump())
+    
+    async def get_user(self, username: str) -> List[Dict[str, Any]]:
+        user = self.container.query_items(
+            query='SELECT * FROM c WHERE c.username = @username', 
+            parameters=[{"name": "@username", "value": username}]
+        )
+            
+        return [user_detail async for user_detail in user]
