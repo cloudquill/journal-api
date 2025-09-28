@@ -7,6 +7,7 @@ from fastapi import FastAPI, status, Request
 from fastapi.responses import JSONResponse
 
 from controllers import login_router, journal_router
+from logging_configs import mylogger
 from exceptions import (
     EntryNotFoundError,
     WeakPassword, 

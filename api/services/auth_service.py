@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta
 
 import jwt
-from passlib.context import CryptContext
+import bcrypt
 
 from models.user import UserInDB
 from repositories.cosmos_repository import UserDB
@@ -12,14 +12,13 @@ from exceptions import IncorrectCredentials, UserAlreadyExists, WeakPassword
 
 logger = logging.getLogger("journal")
 
+SALT_ROUNDS = 10
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 TOKEN_EXPIRE_MINUTES = int(os.getenv("TOKEN_EXPIRE_MINUTES"))
 if not (SECRET_KEY and ALGORITHM and TOKEN_EXPIRE_MINUTES):
     logger.critical("Environment variables not loaded.")
     raise ValueError("Environment variables not loaded.")
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class AuthService():
@@ -54,10 +53,10 @@ class AuthService():
             )
     
     def hash_password(self, plain_password: str) -> str:
-        return pwd_context.hash(plain_password)
+        return bcrypt.hashpw(plain_password.encode('utf-8'), bcrypt.gensalt(SALT_ROUNDS))
     
-    def verify_password(self, plain_password, hashed_password) -> bool:
-        return pwd_context.verify(plain_password, hashed_password)
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
     
     async def register_user(self, username: str, password: str) -> bool:
         existing_user = await self.get_user(username)

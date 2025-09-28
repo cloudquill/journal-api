@@ -4,4 +4,5 @@ python-dotenv
 azure-cosmos
 aiohttp
 pyjwt
-passlib[bcrypt]
+bcrypt
+python-multipart
